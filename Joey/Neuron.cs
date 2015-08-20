@@ -11,6 +11,7 @@ namespace TicTacToe.AI
         private Dictionary<int, Neuron> Children = new Dictionary<int,Neuron>();
         private int player1FavourableCount = 0;
         private int player2FavourableCount = 0;
+        private double orderStateValue = 0;
 
         internal Player Winner { get; private set; }
         internal Player NextTurn { get; private set; }
@@ -26,10 +27,31 @@ namespace TicTacToe.AI
             {
                 player2FavourableCount++;
             }
+            UpdateOrderStateValue();
             if (Parent != null)
             {
                 Parent.UpdateFavourableCount(winner);
             }
+        }
+
+        private void UpdateOrderStateValue()
+        {
+            if (player1FavourableCount == 0)
+            {
+                orderStateValue = -1;
+                return;
+            }
+            if (player2FavourableCount == 0)
+            {
+                orderStateValue = 1;
+                return;
+            }
+
+            double player1WinRatio = (double)player1FavourableCount / (player1FavourableCount + player2FavourableCount);
+            double player2WinRatio = 1 - player1WinRatio;
+
+            double disorder = -player1WinRatio * Math.Log(player1WinRatio, 2) - player2WinRatio * Math.Log(player2WinRatio);
+            orderStateValue = (player1WinRatio < 0.5 ? -1 : 1) * (1 - disorder);
         }
 
         private Neuron AddNewChild(int rowIndex, int columnIndex)
@@ -162,6 +184,8 @@ namespace TicTacToe.AI
             int maxFavourableCount = 0;
             int minUnFavourableCount = 0;
             int maxMeanFavourableCount = 0;
+            double orderValue = 0;
+            double favourableOrderValue = 0;
             bool chooseMostFavourable = (NextTurn == Player.First);
             chooseMostFavourable = true;
 
@@ -182,11 +206,13 @@ namespace TicTacToe.AI
                         favourableCount = NextTurn == Player.First ? Children[index].player1FavourableCount : Children[index].player2FavourableCount;
                         unFavourableCount = NextTurn == Player.First ? Children[index].player2FavourableCount : Children[index].player1FavourableCount;
                         meanFavourableCount = favourableCount - unFavourableCount;
+                        orderValue = Children[index].orderStateValue;
                         if (rowIndex == -1)
                         {
                             maxFavourableCount = favourableCount;
                             minUnFavourableCount = unFavourableCount;
                             maxMeanFavourableCount = favourableCount - unFavourableCount;
+                            favourableOrderValue = orderValue;
                             rowIndex = i;
                             columnIndex = j;
                         }
@@ -205,28 +231,40 @@ namespace TicTacToe.AI
                                 return;
                             }
                         }
-                        if (meanFavourableCount >= maxMeanFavourableCount)
+                        //if (meanFavourableCount >= maxMeanFavourableCount)
+                        //{
+                        //    if (meanFavourableCount > maxMeanFavourableCount)
+                        //    {
+                        //        maxFavourableCount = favourableCount;
+                        //        minUnFavourableCount = unFavourableCount;
+                        //        maxMeanFavourableCount = meanFavourableCount;
+                        //        rowIndex = i;
+                        //        columnIndex = j;
+                        //    }
+                        //    else if (chooseMostFavourable && favourableCount > maxFavourableCount)
+                        //    {
+                        //        maxFavourableCount = favourableCount;
+                        //        rowIndex = i;
+                        //        columnIndex = j;
+                        //    }
+                        //    else if (!chooseMostFavourable && unFavourableCount < minUnFavourableCount)
+                        //    {
+                        //        minUnFavourableCount = unFavourableCount;
+                        //        rowIndex = i;
+                        //        columnIndex = j;
+                        //    }
+                        //}
+                        if (NextTurn == Player.First && orderValue > favourableOrderValue)
                         {
-                            if (meanFavourableCount > maxMeanFavourableCount)
-                            {
-                                maxFavourableCount = favourableCount;
-                                minUnFavourableCount = unFavourableCount;
-                                maxMeanFavourableCount = meanFavourableCount;
-                                rowIndex = i;
-                                columnIndex = j;
-                            }
-                            else if (chooseMostFavourable && favourableCount > maxFavourableCount)
-                            {
-                                maxFavourableCount = favourableCount;
-                                rowIndex = i;
-                                columnIndex = j;
-                            }
-                            else if (!chooseMostFavourable && unFavourableCount < minUnFavourableCount)
-                            {
-                                minUnFavourableCount = unFavourableCount;
-                                rowIndex = i;
-                                columnIndex = j;
-                            }
+                            favourableOrderValue = orderValue;
+                            rowIndex = i;
+                            columnIndex = j;
+                        }
+                        else if (NextTurn == Player.Second && orderValue < favourableOrderValue)
+                        {
+                            favourableOrderValue = orderValue;
+                            rowIndex = i;
+                            columnIndex = j;
                         }
                     }
                 }
